@@ -1,4 +1,5 @@
 from lxml import html
+from lxml import etree
 import requests
 import json 
 from unicodedata import*
@@ -552,15 +553,19 @@ converstions = {
 }
 volumes = {"gallon":16,"gal":16,"quart":4,"qt":4,"pint":2,"pt":2,"cup":1,"ounce":0.125,"oz":0.125,"tablespoon":0.0625,"tbsp":0.0625,"teaspoon":0.0208,"tsp":0.0208}
 
-page = requests.get('https://www.bonappetit.com/recipe/one-pot-chicken-and-rice')
-tree = html.fromstring(page.content)
+
+
+page = requests.get('https://www.bonappetit.com/recipe/bas-best-buttermilk-pancakes')
+myparser = etree.HTMLParser(encoding="utf-8")
+tree = html.fromstring(page.content, parser=myparser)
 data = tree.xpath('/html/head/script[14]/text()')
 ingredients = json.loads(data[0])['recipeIngredient']
-
+print(data)
 parsedIngredients = []
 
 for ingredient in ingredients:
-    ingredientText = ingredient.replace("Â","").lower()
+    #print(ingredient.encode('UTF-8'))
+    ingredientText = ingredient.lower()
     numberPart = ""
     volumeConvert = 0
     for key in volumes:
@@ -575,7 +580,7 @@ for ingredient in ingredients:
         for character in numberPart:
             parsedNum = normalize('NFKC',character).replace("⁄","/",)
             if(parsedNum == character and parsedNum.isdecimal()):
-                num += character
+                num += character 
                 continue
             break
         if(num == ""):
@@ -595,10 +600,9 @@ for ingredient in parsedIngredients:
             if char in "?.!/;:,":
                 description = ingredient[1].replace(char,'')
         lookupWords = description.split(' ')
-        print(ingredient,"   ", description,"   ",lookupWords)
+        #print(ingredient,"   ", description,"   ",lookupWords)
         for word in lookupWords:
             if word in converstions.keys():
-                print(word)
                 for adj in lookupWords:
                     if adj in converstions[word].keys():
                         ingConversion = converstions[word][adj]
