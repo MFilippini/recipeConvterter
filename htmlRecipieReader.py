@@ -3,15 +3,6 @@ import requests
 import json 
 from unicodedata import*
 
-# volumeConversions = ['cup':1,]
-# gallon	gal.
-# quart	qt.
-# pint	pt.
-# cup	
-# ounce	fl.oz.  oz.
-# tablespoon  tbsp.
-# teaspoon	tsp.
-
 converstions = {
   "almond": {
     "flour": 96,
@@ -82,7 +73,8 @@ converstions = {
     "default": 152
   },
   "butter": {
-    "default": 226
+    "default": 226,
+    "peanut": 270
   },
   "buttermilk": {
     "default": 227,
@@ -120,6 +112,14 @@ converstions = {
     "default": 113,
   },
   "cherrie": {
+    "default": 160,
+    "candied": 200,
+    "chopped": 160,
+    "dried": 142,
+    "frozen": 113,
+    "pitted": 160
+  },
+  "cherry": {
     "default": 160,
     "candied": 200,
     "chopped": 160,
@@ -384,9 +384,9 @@ converstions = {
     "default": 170,
     "candied": 170
   },
-  "pepper": {
+  "bell": {
     "default": 142,
-    "bell": 142
+    "pepper": 142
   },
   "pesto": {
     "default": 224
@@ -416,6 +416,10 @@ converstions = {
     "default": 152,
     "flour": 184,
     "starch": 152
+  },
+  "potato": {
+    "default": 213,
+    "mashed": 213
   },
   "potatoe": {
     "default": 213,
@@ -546,28 +550,67 @@ converstions = {
     "default": 140
   }
 }
+volumes = {"gallon":16,"gal":16,"quart":4,"qt":4,"pint":2,"pt":2,"cup":1,"ounce":0.125,"oz":0.125,"tablespoon":0.0625,"tbsp":0.0625,"teaspoon":0.0208,"tsp":0.0208}
 
-page = requests.get('https://www.bonappetit.com/recipe/caramelized-cabbage')
+page = requests.get('https://www.bonappetit.com/recipe/one-pot-chicken-and-rice')
 tree = html.fromstring(page.content)
 data = tree.xpath('/html/head/script[14]/text()')
 ingredients = json.loads(data[0])['recipeIngredient']
-print(ingredients)
 
-for ingIndex in range(len(ingredients)):
-    ingredientText = ""
-    ingredientNumber = ""
-    ingredient = ingredients[ingIndex]
-    for x in range(len(ingredient)):
-        character = ingredient[x]
-        if(character != normalize('NFKC',character)):
-            parsedNum = eval(normalize('NFKC',character).replace("⁄","/",))
-            if(ingredient[x-2].isdecimal()):
-                parsedNum += decimal(ingredient[x-2])
-            cleanIngredient += str(parsedNum)
+parsedIngredients = []
+
+for ingredient in ingredients:
+    ingredientText = ingredient.replace("Â","").lower()
+    numberPart = ""
+    volumeConvert = 0
+    for key in volumes:
+        numEnd = ingredientText.find(key)
+        if(numEnd != -1):
+            numberPart = ingredientText[:numEnd+len(key)]
+            volumeConvert = volumes[key]
+            break
+    if(numberPart != ""):
+        num = ""
+        parsedNum = ""
+        for character in numberPart:
+            parsedNum = normalize('NFKC',character).replace("⁄","/",)
+            if(parsedNum == character and parsedNum.isdecimal()):
+                num += character
+                continue
+            break
+        if(num == ""):
+            num = "0"
+        if(parsedNum.strip() == ""):
+            parsedNum = "0"
+        numberPart = eval(num) + eval(parsedNum)
+        numberPart *= volumeConvert
+    parsedIngredients.append([numberPart,ingredientText])
+
+for ingredient in parsedIngredients:
+    ingConversion = 0
+    description = ""
+    if(ingredient[0] != ''):
+        description = ingredient[1]
+        for char in ingredient[1]:
+            if char in "?.!/;:,":
+                description = ingredient[1].replace(char,'')
+        lookupWords = description.split(' ')
+        print(ingredient,"   ", description,"   ",lookupWords)
+        for word in lookupWords:
+            if word in converstions.keys():
+                print(word)
+                for adj in lookupWords:
+                    if adj in converstions[word].keys():
+                        ingConversion = converstions[word][adj]
+                        break
+                if(ingConversion == 0):
+                    ingConversion = converstions[word]["default"]
+        if(ingConversion == 0):
+            ingredient[0] = ''
         else:
-            cleanIngredient += character.replace("Â","").lower()
-    ingredients[ingIndex] = cleanIngredient.lower()
-            
+            ingredient[0] = str(ingredient[0] * ingConversion) + "g"
 
-print(ingredients)
-
+print("\n\n")
+for ingredient in parsedIngredients:
+    print(ingredient[0]+"\t"+ingredient[1])
+print("\n\n")
