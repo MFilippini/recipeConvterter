@@ -60,7 +60,13 @@ converstions = {
     "cereal": 60
   },
   "bread": {
-    "default": 50,
+    "default": 112,
+    "crumb": 112,
+    "japanese": 50,
+    "panko": 50
+  },
+  "breadcrumb": {
+    "default": 112,
     "crumb": 112,
     "japanese": 50,
     "panko": 50
@@ -143,7 +149,8 @@ converstions = {
     "chunk": 170
   },
   "cinnamon": {
-    "default": 200,
+    "default": 125,
+    "ground": 125,
     "sugar": 200
   },
   "cocoa": {
@@ -371,7 +378,8 @@ converstions = {
   "peanut": {
     "default": 142,
     "butter": 270,
-    "whole": 142
+    "whole": 142,
+    "raw": 142
   },
   "pear": {
     "default": 163,
@@ -466,7 +474,7 @@ converstions = {
     "default": 124
   },
   "salt": {
-    "default": 256,
+    "default": 128,
     "diamond": 128,
     "morton'": 256,
     "morton": 256,
@@ -497,7 +505,7 @@ converstions = {
     "demerara": 220,
     "superfine": 190,
     "turbinado": 180,
-    "white": 198
+    "granulated": 198
   },
   "sunflower": {
     "default": 140
@@ -553,18 +561,17 @@ converstions = {
 }
 volumes = {"gallon":16,"gal":16,"quart":4,"qt":4,"pint":2,"pt":2,"cup":1,"ounce":0.125,"oz":0.125,"tablespoon":0.0625,"tbsp":0.0625,"teaspoon":0.0208,"tsp":0.0208}
 
+url = 'https://www.bonappetit.com/recipe/sour-cherry-pie'
 
-
-page = requests.get('https://www.bonappetit.com/recipe/bas-best-buttermilk-pancakes')
+page = requests.get(url)
 myparser = etree.HTMLParser(encoding="utf-8")
 tree = html.fromstring(page.content, parser=myparser)
-data = tree.xpath('/html/head/script[14]/text()')
+
+data = tree.xpath('//script[@type="application/ld+json"]/text()')
 ingredients = json.loads(data[0])['recipeIngredient']
-print(data)
 parsedIngredients = []
 
 for ingredient in ingredients:
-    #print(ingredient.encode('UTF-8'))
     ingredientText = ingredient.lower()
     numberPart = ""
     volumeConvert = 0
@@ -591,17 +598,19 @@ for ingredient in ingredients:
         numberPart *= volumeConvert
     parsedIngredients.append([numberPart,ingredientText])
 
+
 for ingredient in parsedIngredients:
     ingConversion = 0
     description = ""
     if(ingredient[0] != ''):
         description = ingredient[1]
         for char in ingredient[1]:
-            if char in "?.!/;:,":
+            if char in "?.!/;:,()":
                 description = ingredient[1].replace(char,'')
         lookupWords = description.split(' ')
-        #print(ingredient,"   ", description,"   ",lookupWords)
         for word in lookupWords:
+            if(word.endswith('s')):
+                word = word[:-1]
             if word in converstions.keys():
                 for adj in lookupWords:
                     if adj in converstions[word].keys():
@@ -612,7 +621,7 @@ for ingredient in parsedIngredients:
         if(ingConversion == 0):
             ingredient[0] = ''
         else:
-            ingredient[0] = str(ingredient[0] * ingConversion) + "g"
+            ingredient[0] = str(round(ingredient[0] * ingConversion)) + "g"
 
 print("\n\n")
 for ingredient in parsedIngredients:
